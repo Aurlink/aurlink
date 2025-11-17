@@ -1,0 +1,328 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Enums for type safety
+enum SubscriptionPlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+  PAST_DUE
+}
+
+enum AITaskType {
+  TRAINING
+  INFERENCE
+  FINE_TUNING
+  PROCESSING
+}
+
+enum AITaskStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum LogLevel {
+  INFO
+  WARN
+  ERROR
+  DEBUG
+}
+
+enum TransactionType {
+  API_CALL
+  SUBSCRIPTION
+  REFUND
+  BONUS
+  CLAIM
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum VestingStatus {
+  PENDING
+  ALLOCATED
+  CLAIMED
+  CANCELLED
+  EXPIRED
+}
+
+enum VestingType {
+  TOKEN_SALE
+  DEVELOPER
+  ADVISOR
+  TEAM
+  INVESTOR
+  LIQUIDITY
+}
+
+enum ClaimType {
+  REGULAR_CLAIM
+  EARLY_CLAIM
+  FINAL_CLAIM
+  CLIFF_CLAIM
+}
+
+// Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String?
+  email         String   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Custom fields
+  subscription  Subscription?
+  aiTasks       AITask[]
+  transactions  Transaction[]
+  vestingRecords VestingRecord[]
+  
+  @@index([email])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Subscription {
+  id        String            @id @default(cuid())
+  plan      SubscriptionPlan  @default(FREE)
+  status    SubscriptionStatus @default(ACTIVE)
+  userId    String            @unique
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  renewsAt  DateTime
+  createdAt DateTime          @default(now())
+  
+  @@index([renewsAt])
+  @@index([status, renewsAt])
+  @@index([createdAt])
+  @@map("subscriptions")
+}
+
+model AITask {
+  id          String        @id @default(cuid())
+  name        String
+  type        AITaskType    @default(TRAINING)
+  status      AITaskStatus  @default(QUEUED)
+  progress    Int           @default(0)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt   DateTime      @default(now())
+  completedAt DateTime?
+  logs        AITaskLog[]
+  
+  @@index([userId, status])
+  @@index([type, status])
+  @@index([startedAt])
+  @@index([completedAt])
+  @@map("ai_tasks")
+}
+
+model AITaskLog {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      AITask   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  message   String
+  level     LogLevel @default(INFO)
+  timestamp DateTime @default(now())
+  
+  @@index([taskId, timestamp])
+  @@index([level, timestamp])
+  @@map("ai_task_logs")
+}
+
+model NetworkMetrics {
+  id          String   @id @default(cuid())
+  hashrate    Float
+  activeNodes Int
+  apiCalls    Int
+  timestamp   DateTime @default(now())
+  
+  @@index([timestamp])
+  @@map("network_metrics")
+}
+
+model Transaction {
+  id        String            @id @default(cuid())
+  type      TransactionType   @default(API_CALL)
+  amount    Float
+  status    TransactionStatus @default(PENDING)
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime          @default(now())
+  
+  @@index([userId, type])
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+  @@map("transactions")
+}
+
+model VestingRecord {
+  id            String        @id @default(cuid())
+  wallet        String
+  totalAmount   Float
+  claimedAmount Float         @default(0)
+  vestingStart  DateTime
+  vestingMonths Int
+  cliffMonths   Int
+  status        VestingStatus @default(PENDING)
+  type          VestingType   @default(TOKEN_SALE)
+  saleTier      Int?
+  contributionBNB Float?
+  purchaseDate  DateTime?
+  purchaseTx    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Relationships
+  claimHistory ClaimHistory[]
+  
+  // Calculated fields (virtual, not stored in DB)
+  /// @db.ignore unclaimedAmount Float?
+  /// @db.ignore vestedAmount Float?
+  /// @db.ignore claimableAmount Float?
+  
+  @@unique([wallet, type, saleTier])
+  @@index([wallet])
+  @@index([type])
+  @@index([status])
+  @@index([vestingStart])
+  @@index([createdAt])
+  @@map("vesting_records")
+}
+
+model ClaimHistory {
+  id        String    @id @default(cuid())
+  vestingId String
+  wallet    String
+  amount    Float
+  txHash    String?
+  timestamp DateTime  @default(now())
+  type      ClaimType
+  
+  // Relationships
+  vestingRecord VestingRecord @relation(fields: [vestingId], references: [id], onDelete: Cascade)
+  
+  @@unique([vestingId, txHash])
+  @@index([wallet])
+  @@index([vestingId])
+  @@index([timestamp])
+  @@index([type, timestamp])
+  @@map("claim_history")
+}
+
+model TokenSaleStats {
+  id                String   @id @default(cuid())
+  totalAllocated    Float    @default(0)
+  totalUnlocked     Float    @default(0)
+  totalClaimable    Float    @default(0)
+  totalClaimed      Float    @default(0)
+  totalParticipants Int      @default(0)
+  averageAllocation Float    @default(0)
+  totalRaisedBNB    Float    @default(0)
+  activeTier        Int      @default(1)
+  updatedAt         DateTime @updatedAt
+  
+  @@map("token_sale_stats")
+}
+
+// Additional utility models for enhanced functionality
+model SystemSettings {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+  
+  @@map("system_settings")
+}
+
+model APILog {
+  id          String   @id @default(cuid())
+  endpoint    String
+  method      String
+  statusCode  Int
+  userId      String?
+  ipAddress   String?
+  userAgent   String?
+  duration    Int      // milliseconds
+  createdAt   DateTime @default(now())
+  
+  @@index([endpoint, createdAt])
+  @@index([userId, createdAt])
+  @@index([statusCode])
+  @@map("api_logs")
+}
+
+model Cache {
+  key         String   @id
+  value       String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("cache")
+}
