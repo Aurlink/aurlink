@@ -4,7 +4,7 @@ import Providers from './providers' // ← your Wagmi + RainbowKit wrapper
 import { wagmi } from '@/lib/wagmi'
 
 export const metadata: Metadata = {
-  title: 'Aurlink - Blockchain Infrastructure',
+  title: 'Aurlink - The Cognitive Blockchain',
   description:
     'AI-powered blockchain infrastructure for the next generation of decentralized applications',
 }

@@ -262,26 +262,53 @@ export default function FinalCTA() {
           )}
         </motion.div>
 
-        {/* Social Proof */}
+        {/* Fixed: Scrolling "Partners List Coming Soon" */}
         <motion.div 
           variants={itemVariants}
           className="mt-16"
         >
-          <p className="text-gray-400 mb-8">Trusted by visionary investors and partners</p>
-          <div className="flex flex-wrap justify-center items-center gap-8 opacity-60">
-            {['Binance Labs', 'Coinbase Ventures', 'a16z Crypto', 'Polychain', 'Paradigm'].map((partner, index) => (
-              <motion.div
-                key={partner}
-                className="text-gray-300 font-semibold text-lg"
-                animate={isInView ? {
-                  opacity: [0.4, 0.8, 0.4],
-                  transition: { duration: 2, repeat: Infinity, delay: index * 0.3 }
-                } : {}}
-              >
-                {partner}
-              </motion.div>
-            ))}
+          <p className="text-gray-400 mb-8">Building Strategic Partnerships</p>
+          
+          {/* Scrolling Container */}
+          <div className="relative w-full overflow-hidden">
+            <motion.div
+              className="flex whitespace-nowrap"
+              animate={{
+                x: [0, -1000],
+              }}
+              transition={{
+                x: {
+                  repeat: Infinity,
+                  repeatType: "loop",
+                  duration: 20,
+                  ease: "linear",
+                },
+              }}
+            >
+              {/* Multiple instances for seamless scrolling */}
+              {[...Array(4)].map((_, blockIndex) => (
+                <div key={blockIndex} className="flex items-center gap-12 px-6">
+                  <span className="text-2xl font-bold text-[#00F5FF] bg-gradient-to-r from-[#00F5FF] to-cyan-300 bg-clip-text text-transparent">
+                    Partners List Coming Soon •
+                  </span>
+                  <span className="text-2xl font-bold text-[#00F5FF] bg-gradient-to-r from-[#00F5FF] to-cyan-300 bg-clip-text text-transparent">
+                    Partners List Coming Soon •
+                  </span>
+                  <span className="text-2xl font-bold text-[#00F5FF] bg-gradient-to-r from-[#00F5FF] to-cyan-300 bg-clip-text text-transparent">
+                    Partners List Coming Soon •
+                  </span>
+                </div>
+              ))}
+            </motion.div>
+            
+            {/* Gradient fade effects on sides */}
+            <div className="absolute left-0 top-0 w-20 h-full bg-gradient-to-r from-[#0A0F2C] to-transparent z-10" />
+            <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-[#0A0F2C] to-transparent z-10" />
           </div>
+
+          <p className="text-gray-400 text-sm mt-6">
+            We're currently forming strategic alliances and will announce our partners soon
+          </p>
         </motion.div>
       </div>
     </motion.section>
