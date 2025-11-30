@@ -1,6 +1,7 @@
 'use client'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import Image from "next/image";
 import { 
   Twitter, 
   MessageCircle, 
@@ -47,7 +48,7 @@ export default function Footer() {
   }
 
   const socialLinks = [
-    { icon: <Twitter className="w-5 h-5" />, href: 'https://x.com/Aurlinkio', label: 'Twitter' },
+    { icon: <Twitter className="w-5 h-5" />, href: 'https://x.com/Aurlink', label: 'Twitter' },
     { icon: <Facebook className="w-5 h-5" />, href: 'https://facebook.com/Aurlink', label: 'Facebook' },
     { icon: <MessageCircle className="w-5 h-5" />, href: 'https://discord.gg/aurlink', label: 'Discord' },
     { icon: <Youtube className="w-5 h-5" />, href: 'https://youtube.com/@Aurlinkio', label: 'YouTube' },
@@ -73,17 +74,18 @@ export default function Footer() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
             {/* Brand Section */}
             <div className="space-y-6">
-              <Link href="/" className="flex items-center gap-3 group">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00F5FF] to-cyan-400 flex items-center justify-center text-[#0A0F2C] font-bold text-xl group-hover:scale-105 transition-transform duration-300">
-                  A
-                </div>
-                <div>
-                  <span className="text-2xl font-bold text-white">AURLINK</span>
-                  <p className="text-[#00F5FF] text-sm font-semibold">Cognitive Blockchain</p>
-                </div>
-              </Link>
+               <Link href="/home" className="flex items-center gap-2">
+                <Image src="/logo.png" alt="Aurlink Logo" width={70} height={70} />
 
-              <p className="text-gray-300 text-lg max-w-md leading-relaxed">
+                    <div className="flex flex-col leading-none">
+                      <span className="text-white font-bold text-2xl m-0 p-0">AURLINK</span>
+                       <span className="text-[#00F5FF] text-sm font-semibold m-0 p-0">
+                         The Cognitive Blockchain
+                        </span>
+                       </div>
+                    </Link>
+
+                <p className="text-gray-300 text-lg max-w-md leading-relaxed">
                 Building the world's first AI-native Layer-1 blockchain. 
                 Experience unmatched scalability, self-optimizing infrastructure, 
                 and a developer-ready platform.

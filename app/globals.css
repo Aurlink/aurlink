@@ -175,3 +175,13 @@ input[type=number]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Add to your global CSS for even finer control */
+.mobile-menu-button {
+  padding: 6px !important;
+}
+
+.mobile-menu-icon {
+  width: 16px !important;
+  height: 16px !important;
+}

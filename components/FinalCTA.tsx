@@ -1,12 +1,19 @@
 'use client'
 import { motion, useInView } from 'framer-motion'
-import { useRef } from 'react'
-import { FileText, Users, ArrowRight, Star, Shield, Zap, MessageCircle } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { FileText, Users, ArrowRight, Star, Shield, Zap, MessageCircle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 
 export default function FinalCTA() {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: false, margin: '-100px' })
+  
+  const [email, setEmail] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [error, setError] = useState('')
+
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
   const stats = [
     { icon: <Users className="w-6 h-6" />, value: '100+', label: 'Early Community Members' },
@@ -14,6 +21,37 @@ export default function FinalCTA() {
     { icon: <Shield className="w-6 h-6" />, value: 'Q1 2026', label: 'Testnet Launch' },
     { icon: <Star className="w-6 h-6" />, value: '50+', label: 'dApps Target' }
   ]
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    setError('')
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/subscribe`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setIsSubmitted(true)
+        setEmail('')
+        console.log('✅ Email subscribed:', data)
+      } else {
+        setError(data.error || 'Failed to subscribe. Please try again.')
+      }
+    } catch (error) {
+      console.error('❌ Subscription error:', error)
+      setError('Network error. Please check your connection and try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -163,27 +201,65 @@ export default function FinalCTA() {
           variants={itemVariants}
           className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-8 max-w-2xl mx-auto"
         >
-          <h3 className="text-2xl font-bold text-white mb-4">Stay Updated</h3>
-          <p className="text-gray-300 mb-6">Get the latest on testnet launches, partnership announcements, and ecosystem growth.</p>
-          
-          <div className="flex flex-col sm:flex-row gap-4">
-            <input 
-              type="email" 
-              placeholder="Enter your email address"
-              className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-[#00F5FF] transition-colors"
-            />
-            <Link href="/waitlist" className="block">
-              <motion.button
-                className="px-6 py-3 bg-gradient-to-r from-[#00F5FF] to-cyan-400 text-[#0A0F2C] font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/30 transition-all duration-300 flex items-center gap-2 w-full"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <span>Subscribe</span>
-                <ArrowRight className="w-4 h-4" />
-              </motion.button>
-            </Link>
-          </div>
-          <p className="text-gray-400 text-sm mt-4">No spam. Unsubscribe at any time.</p>
+          {!isSubmitted ? (
+            <>
+              <h3 className="text-2xl font-bold text-white mb-4">Stay Updated</h3>
+              <p className="text-gray-300 mb-6">Get the latest on testnet launches, partnership announcements, and ecosystem growth.</p>
+              
+              <form onSubmit={handleEmailSubmit} className="flex flex-col sm:flex-row gap-4">
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email address"
+                  className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-[#00F5FF] transition-colors"
+                  required
+                  disabled={isSubmitting}
+                />
+                <motion.button
+                  type="submit"
+                  disabled={isSubmitting || !email}
+                  className="px-6 py-3 bg-gradient-to-r from-[#00F5FF] to-cyan-400 text-[#0A0F2C] font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/30 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]"
+                  whileHover={{ scale: isSubmitting || !email ? 1 : 1.05 }}
+                  whileTap={{ scale: isSubmitting || !email ? 1 : 0.95 }}
+                >
+                  {isSubmitting ? (
+                    <div className="w-5 h-5 border-2 border-[#0A0F2C] border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span>Subscribe</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </motion.button>
+              </form>
+
+              {/* Error Message */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg"
+                >
+                  <p className="text-red-400 text-sm">{error}</p>
+                </motion.div>
+              )}
+
+              <p className="text-gray-400 text-sm mt-4">No spam. Unsubscribe at any time.</p>
+            </>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-4"
+            >
+              <CheckCircle className="w-12 h-12 text-[#00F5FF] mx-auto mb-3" />
+              <h3 className="text-xl font-bold text-white mb-2">You're Subscribed!</h3>
+              <p className="text-gray-300">
+                Thank you for joining the AURLINK community. We'll keep you updated with the latest developments.
+              </p>
+            </motion.div>
+          )}
         </motion.div>
 
         {/* Social Proof */}
@@ -193,17 +269,16 @@ export default function FinalCTA() {
         >
           <p className="text-gray-400 mb-8">Trusted by visionary investors and partners</p>
           <div className="flex flex-wrap justify-center items-center gap-8 opacity-60">
-            {Array.from({ length: 5 }).map((_, index) => (
+            {['Binance Labs', 'Coinbase Ventures', 'a16z Crypto', 'Polychain', 'Paradigm'].map((partner, index) => (
               <motion.div
-                key={`partner-${index}`} // ✅ FIXED: Unique key using index
+                key={partner}
                 className="text-gray-300 font-semibold text-lg"
                 animate={isInView ? {
                   opacity: [0.4, 0.8, 0.4],
                   transition: { duration: 2, repeat: Infinity, delay: index * 0.3 }
                 } : {}}
               >
-                {/* Placeholder for partner logos - add actual content here */}
-                Partner {index + 1}
+                {partner}
               </motion.div>
             ))}
           </div>

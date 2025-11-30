@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { FocusTrap } from "@headlessui/react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Brain,
   Globe2,
@@ -24,7 +25,7 @@ type Category = { tag: string; icon: React.ReactNode; items: Item[] };
 const LEARN_CATS: Category[] = [
   {
     tag: "Why Aurlink",
-    icon: <Brain className="w-5 h-5" />,
+    icon: <Brain className="w-4 h-4" />,
     items: [
       { title: "For Investors", desc: "Discover Aurlink's market potential and investment opportunities.", href: "/learn/investors" },
       { title: "For Enterprises", desc: "Secure, scalable blockchain solutions for your business.", href: "/learn/enterprises" },
@@ -33,7 +34,7 @@ const LEARN_CATS: Category[] = [
   },
   {
     tag: "Use Cases",
-    icon: <Globe2 className="w-5 h-5" />,
+    icon: <Globe2 className="w-4 h-4" />,
     items: [
       { title: "Decentralized Finance (DeFi)", desc: "Smarter trading and lending with AI-driven insights.", href: "/learn/use-cases/defi" },
       { title: "Supply Chain Transparency", desc: "Track assets securely with real-time verification.", href: "/learn/use-cases/supply-chain" },
@@ -44,7 +45,7 @@ const LEARN_CATS: Category[] = [
   },
   {
     tag: "Technology",
-    icon: <FlaskConical className="w-5 h-5" />,
+    icon: <FlaskConical className="w-4 h-4" />,
     items: [
       { title: "AI-Powered Blockchain", desc: "Learn how AI enhances speed and security.", href: "/learn/technology/ai-blockchain" },
       { title: "Scalable Infrastructure", desc: "Handle high demand with dynamic resource allocation.", href: "/learn/technology/scalability" },
@@ -56,7 +57,7 @@ const LEARN_CATS: Category[] = [
 const BUILD_CATS: Category[] = [
   {
     tag: "Developer Tools",
-    icon: <Code2 className="w-5 h-5" />,
+    icon: <Code2 className="w-4 h-4" />,
     items: [
       { title: "Documentation", desc: "Guides to build on Aurlink's blockchain.", href: "/build/docs/quick-start" },
       { title: "APIs & SDKs", desc: "Tools to create powerful dApps quickly.", href: "/build/docs/api/rest" },
@@ -67,7 +68,7 @@ const BUILD_CATS: Category[] = [
   },
   {
     tag: "Funding & Grants",
-    icon: <Coins className="w-5 h-5" />,
+    icon: <Coins className="w-4 h-4" />,
     items: [
       { title: "Developer Grants", desc: "Funding to bring your ideas to life.", href: "/build/grants" },
       { title: "Request for Grant", desc: "Apply for funding and support for your project.", href: "/build/request-grant" },
@@ -76,7 +77,7 @@ const BUILD_CATS: Category[] = [
   },
   {
     tag: "Support",
-    icon: <LifeBuoy className="w-5 h-5" />,
+    icon: <LifeBuoy className="w-4 h-4" />,
     items: [
       { title: "Dev Support", desc: "Get help from Aurlink's engineering team.", href: "/build/support" },
       { title: "Community Forum", desc: "Connect with other developers for solutions.", href: "/build/forum" },
@@ -87,7 +88,7 @@ const BUILD_CATS: Category[] = [
 const CONNECT_CATS: Category[] = [
   {
     tag: "Community",
-    icon: <Users2 className="w-5 h-5" />,
+    icon: <Users2 className="w-4 h-4" />,
     items: [
       { title: "Events & Meetups", desc: "Join global Aurlink events, virtual or in-person.", href: "/connect/events" },
       { title: "Ambassador Program", desc: "Become an Aurlink advocate in your community.", href: "/connect/ambassadors" },
@@ -96,7 +97,7 @@ const CONNECT_CATS: Category[] = [
   },
   {
     tag: "Ecosystem",
-    icon: <Network className="w-5 h-5" />,
+    icon: <Network className="w-4 h-4" />,
     items: [
       { title: "Partner Directory", desc: "Explore projects and partners in the Aurlink ecosystem.", href: "/connect/partners" },
       { title: "Job Opportunities", desc: "Find roles to contribute to Aurlink's growth.", href: "/connect/jobs" },
@@ -105,7 +106,7 @@ const CONNECT_CATS: Category[] = [
   },
   {
     tag: "Get Started",
-    icon: <Rocket className="w-5 h-5" />,
+    icon: <Rocket className="w-4 h-4" />,
     items: [
       { title: "Beginner's Guide", desc: "Learn Aurlink basics in minutes.", href: "/build/docs/quick-start" },
       { title: "Whitepaper", desc: "Comprehensive technical and economic documentation.", href: "/connect/whitepaper" },
@@ -115,7 +116,7 @@ const CONNECT_CATS: Category[] = [
   },
   {
     tag: "$AUR Token",
-    icon: <Coins className="w-5 h-5" />,
+    icon: <Coins className="w-4 h-4" />,
     items: [
       { title: "Buy $AUR", desc: "Purchase $AUR directly from supported exchanges.", href: "/connect/ido" },
       { title: "Overview", desc: "Overview including tokenomics and use cases for $AUR.", href: "/connect/aur-token-overview" },
@@ -144,10 +145,10 @@ export default function Navbar() {
         {cats.map((cat) => (
           <div key={cat.tag} className="flex flex-col">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-[#1E2A4D] border border-[#00F5FF]/20 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-[#1E2A4D] border border-[#00F5FF]/20 flex items-center justify-center">
                 <div className="text-[#00F5FF]">{cat.icon}</div>
               </div>
-              <span className="text-white text-base font-semibold">{cat.tag}</span>
+              <span className="text-white text-sm font-semibold">{cat.tag}</span>
             </div>
             <ul className="space-y-1">
               {cat.items.map((it) => (
@@ -174,12 +175,12 @@ export default function Navbar() {
 
   return (
     <>
-      {/* Desktop Navbar */}
+      {/* Desktop Navbar - Hidden on Mobile */}
       <header className="hidden md:block fixed inset-x-0 top-0 z-50 bg-[#0A0F2C] border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          {/* Only AURLINK Text */}
-          <Link href="/home" className="flex items-center">
-            <span className="text-white font-bold text-2xl">AURLINK</span>
+          <Link href="/" className="flex items-center gap-2">
+          <Image src="/logo.png" alt="Aurlink Logo" width={50} height={50} />
+          <span className="text-white font-bold text-2xl">AURLINK</span>
           </Link>
 
           <nav className="flex items-center gap-4">
@@ -203,7 +204,6 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* FIXED: Desktop Dropdown Panels - WORKING VERSION */}
         <AnimatePresence>
           {openPanel && (
             <FocusTrap>
@@ -230,18 +230,30 @@ export default function Navbar() {
         </AnimatePresence>
       </header>
 
-      {/* Mobile Menu Button */}
-      <div className="md:hidden fixed top-4 right-4 z-50">
-        <button
-          onClick={() => setMobileOpen((s) => !s)}
-          aria-label={mobileOpen ? "Close menu" : "Open menu"}
-          className="rounded-lg p-3 bg-[#1E2A4D] border border-[#00F5FF]/20 text-white hover:bg-[#00F5FF]/10 transition-all duration-300"
-        >
-          {mobileOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
-        </button>
-      </div>
+      {/* MOBILE NAVBAR HEADER - Simplified without Get Started button */}
+      <header className="md:hidden fixed inset-x-0 top-0 z-40 bg-[#0A0F2C] border-b border-white/10">
+        <div className="flex items-center justify-between p-4">
+          {/* Logo */}
+         <Link href="/" className="flex items-center gap-2">
+        <Image src="/logo.png" alt="Aurlink Logo" width={28} height={28} />
+        <span className="text-white font-bold text-1xl">AURLINK</span>
+        </Link>
 
-      {/* Mobile Menu */}
+          {/* Hamburger Menu Button Only */}
+          <button
+            onClick={() => setMobileOpen((s) => !s)}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            className="rounded-lg p-2 bg-[#1E2A4D] border border-[#00F5FF]/20 text-white hover:bg-[#00F5FF]/10 transition-all duration-300"
+          >
+            {mobileOpen ? <X className="w-4 h-4" /> : <MenuIcon className="w-4 h-4" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Add top padding to main content for mobile navbar */}
+      <div className="md:hidden h-16"></div>
+
+      {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
@@ -261,7 +273,7 @@ export default function Navbar() {
                   onClick={() => setMobileOpen(false)}
                   className="rounded-lg p-2 bg-[#1E2A4D] border border-[#00F5FF]/20 text-white hover:bg-[#00F5FF]/10 transition-all duration-300"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
@@ -274,7 +286,7 @@ export default function Navbar() {
                     >
                       <span className="text-white font-semibold text-sm">{section}</span>
                       <ChevronDown 
-                        className={`w-4 h-4 text-[#00F5FF] transition-transform duration-300 ${
+                        className={`w-3 h-3 text-[#00F5FF] transition-transform duration-300 ${
                           mobileDropdown === section ? 'rotate-180' : ''
                         }`}
                       />
@@ -316,6 +328,7 @@ export default function Navbar() {
                 ))}
               </div>
 
+              {/* Get Started Button - Only in dropdown menu */}
               <div className="p-3 border-t border-white/10 bg-[#0A0F2C]">
                 <Link
                   href="/build/docs/quick-start"

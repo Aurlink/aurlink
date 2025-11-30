@@ -26,7 +26,7 @@ export default function ContactPage() {
               {[
                 {
                   title: 'General Inquiries',
-                  email: 'hello@aurlink.io',
+                  email: 'info@aurlink.io',
                   description: 'For general questions and information',
                 },
                 {
