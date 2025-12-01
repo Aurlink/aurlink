@@ -9,7 +9,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 /* ============================
    CONTRACT CONFIGURATION
    ============================ */
-const TOKENSALE_CONTRACT_ADDRESS = '0x0d30315b2d4eee72176127061e070938aa058b3e ' as const
+const TOKENSALE_CONTRACT_ADDRESS = '0x0d30315b2d4eee72176127061e070938aa058b3e' as const
 const BNB_CHAIN_ID = 56
 
 // ✅ COMPLETE ABI WITH ALL FUNCTIONS FROM YOUR CONTRACT

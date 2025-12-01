@@ -57,7 +57,6 @@ export default function PremiumHero() {
       <div className="absolute inset-0 z-0">
         <Image
           src="/cognitive-core-3d.png"
-          alt=""
           fill
           className="object-cover object-center"
           priority

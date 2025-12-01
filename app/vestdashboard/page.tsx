@@ -8,7 +8,7 @@ import { waitForTransactionReceipt } from '@wagmi/core'
 import { ethers } from 'ethers'
 
 // PRODUCTION ABI - Update with your actual contract ABI
-const VESTING_CONTRACT_ABI = [
+const ERC20_ABI = [
   "function getVestingInfo(address) external view returns (uint256 packageId, uint256 totalAmount, uint256 releasedAmount, uint256 lockedAmount, uint256 releasableAmount, uint256 startTime, uint256 cliffEnd, uint256 vestingEnd, uint8 category)",
   "function calculateReleasableAmount(address) external view returns (uint256)",
   "function getActivePackages() external view returns (tuple(uint256 packageId, string name, uint256 totalAmount, uint256 price, uint256 cliff, uint256 duration, uint8 category, uint256 maxParticipants, uint256 currentParticipants, bool isActive)[])",
@@ -95,8 +95,8 @@ function calculateVestingProgress(startTime: number, cliffEnd: number, vestingEn
 }
 
 export default function VestDashboardPage() {
-  // PRODUCTION CONTRACT ADDRESS - Get from environment variables at runtime
-  const VESTING_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VESTING_CONTRACT_ADDRESS as `0x${string}`
+  // PRODUCTION CONTRACT ADDRESS - HARDCODED DIRECTLY
+  const VESTING_CONTRACT_ADDRESS = '0x4bc40ef18f73cd919d2e8424ca7909ea43066e3f' as `0x${string}`
   
   // wagmi hooks
   const { address: walletAddress, isConnected } = useAccount()
@@ -110,16 +110,6 @@ export default function VestDashboardPage() {
   const [searchWallet, setSearchWallet] = useState('')
   const [isValidAddress, setIsValidAddress] = useState(true)
   const [publicStats, setPublicStats] = useState<PublicVestingStats | null>(null)
-  const [contractError, setContractError] = useState<string>('')
-
-  // Check if contract is configured
-  useEffect(() => {
-    if (!VESTING_CONTRACT_ADDRESS) {
-      setContractError('VESTING_CONTRACT_ADDRESS environment variable is not configured')
-    } else {
-      setContractError('')
-    }
-  }, [VESTING_CONTRACT_ADDRESS])
 
   // PRODUCTION Contract reads - No mock fallbacks
   const {
@@ -129,7 +119,7 @@ export default function VestDashboardPage() {
     isLoading: vestingLoading
   } = useReadContract({
     address: VESTING_CONTRACT_ADDRESS,
-    abi: VESTING_CONTRACT_ABI,
+    abi: ERC20_ABI,
     functionName: 'getVestingInfo',
     args: walletAddress ? [walletAddress] : undefined,
     query: {
@@ -144,7 +134,7 @@ export default function VestDashboardPage() {
     isLoading: packagesLoading
   } = useReadContract({
     address: VESTING_CONTRACT_ADDRESS,
-    abi: VESTING_CONTRACT_ABI,
+    abi: ERC20_ABI,
     functionName: 'getActivePackages',
     query: {
       enabled: !!VESTING_CONTRACT_ADDRESS,
@@ -242,17 +232,12 @@ export default function VestDashboardPage() {
       return
     }
 
-    if (!VESTING_CONTRACT_ADDRESS) {
-      setError('Vesting contract not configured')
-      return
-    }
-
     setLoading(true)
     setError('')
     try {
       const hash = await writeContractAsync({
         address: VESTING_CONTRACT_ADDRESS,
-        abi: VESTING_CONTRACT_ABI,
+        abi: ERC20_ABI,
         functionName: 'selectVestingPackage',
         args: [packageId],
         value: packagePrice
@@ -284,11 +269,6 @@ export default function VestDashboardPage() {
       return
     }
 
-    if (!VESTING_CONTRACT_ADDRESS) {
-      setError('Vesting contract not configured')
-      return
-    }
-
     if (personalStats.totalClaimable <= 0) {
       setError('No tokens available to claim')
       return
@@ -299,7 +279,7 @@ export default function VestDashboardPage() {
     try {
       const hash = await writeContractAsync({
         address: VESTING_CONTRACT_ADDRESS,
-        abi: VESTING_CONTRACT_ABI,
+        abi: ERC20_ABI,
         functionName: 'releaseTokens',
       })
 
@@ -385,21 +365,6 @@ export default function VestDashboardPage() {
   // Package selection content
   const PackageSelectionTab = () => (
     <div className="space-y-8">
-      {/* Contract Status */}
-      {contractError && (
-        <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4">
-          <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-            <div>
-              <div className="text-red-400 font-semibold">Contract Not Configured</div>
-              <div className="text-red-300/80 text-sm">{contractError}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="text-center">
         <h2 className="text-3xl font-bold text-white mb-4">Available Vesting Packages</h2>
         <p className="text-gray-400 text-lg">Choose your AUR token allocation package</p>
@@ -475,7 +440,7 @@ export default function VestDashboardPage() {
 
               <button
                 onClick={() => selectPackage(pkg.packageId, pkg.price)}
-                disabled={loading || !pkg.isActive || pkg.currentParticipants >= pkg.maxParticipants || hasVestingSchedule || !VESTING_CONTRACT_ADDRESS}
+                disabled={loading || !pkg.isActive || pkg.currentParticipants >= pkg.maxParticipants || hasVestingSchedule}
                 className="w-full py-3 px-6 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold rounded-xl hover:from-cyan-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
@@ -648,14 +613,6 @@ export default function VestDashboardPage() {
         {error && (
           <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6">
             <div className="text-red-400 text-sm">{error}</div>
-          </div>
-        )}
-
-        {contractError && (
-          <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4 mb-6">
-            <div className="text-orange-400 text-sm">
-              <strong>Setup Required:</strong> {contractError}
-            </div>
           </div>
         )}
 

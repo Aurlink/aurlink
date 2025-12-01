@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import CustomConnectButton from '../../../components/CustomConnectButton'
 import { 
   CONTRACT_ADDRESSES, 
-  AURLINK_VESTING_ABI, 
+  ERC20_ABI, 
   NETWORK_CONFIG,
   VESTING_CATEGORIES,
   PACKAGE_CATEGORY_COLORS,
@@ -417,7 +417,7 @@ export default function AURLINKVestingPortal() {
   const [showPackageSelection, setShowPackageSelection] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const contractAddress = CONTRACT_ADDRESSES[network] as `0x${string}`
+  const contractAddress = '0x4bc40ef18f73cd919d2e8424ca7909ea43066e3f' as `0x${string}`
 
   /* ============================
      DYNAMIC CONTRACT DATA LOADING
@@ -431,7 +431,7 @@ export default function AURLINKVestingPortal() {
     try {
       const info = await publicClient.readContract({
         address: contractAddress,
-        abi: AURLINK_VESTING_ABI,
+        abi: ERC20_ABI,
         functionName: 'getVestingInfo',
         args: [address]
       }) as any[]
@@ -471,7 +471,7 @@ export default function AURLINKVestingPortal() {
     try {
       const packages = await publicClient.readContract({
         address: contractAddress,
-        abi: AURLINK_VESTING_ABI,
+        abi: ERC20_ABI,
         functionName: 'getActivePackages',
       }) as any[]
       
@@ -498,7 +498,7 @@ export default function AURLINKVestingPortal() {
       // Try to get token info from contract
       const tokenInfo = await publicClient.readContract({
         address: contractAddress,
-        abi: AURLINK_VESTING_ABI,
+        abi: ERC20_ABI,
         functionName: 'getTokenInfo',
       }) as any[]
 
@@ -540,7 +540,7 @@ export default function AURLINKVestingPortal() {
 
       const hash = await walletClient.writeContract({
         address: contractAddress,
-        abi: AURLINK_VESTING_ABI,
+        abi: ERC20_ABI,
         functionName: 'allocateVesting',
         args: [address, packageId, amountWei, startTime],
       })
@@ -679,7 +679,7 @@ export default function AURLINKVestingPortal() {
     try {
       const hash = await walletClient.writeContract({
         address: contractAddress,
-        abi: AURLINK_VESTING_ABI,
+        abi: ERC20_ABI,
         functionName: 'releaseTokens',
       })
 
@@ -788,7 +788,7 @@ export default function AURLINKVestingPortal() {
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-12 gap-6">
           <div>
             <h1 className="text-4xl lg:text-5xl text-white font-bold mb-3 bg-gradient-to-r from-cyan-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-              AurLink Flexible Vesting
+              Aurlink Flexible Vesting
             </h1>
             <p className="text-gray-300 text-xl max-w-2xl">
               Unlimited participation, flexible amounts. 
