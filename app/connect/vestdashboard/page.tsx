@@ -23,6 +23,33 @@ import { VestingInfo, GlobalStats, Network } from '../../../types'
 import NetworkSelector from '../../../components/ui/NetworkSelector'
 import StatsCard from '../../../components/ui/StatsCard'
 
+// VESTING CONTRACT ABI (Updated for the new contract)
+const AURLINK_VESTING_ABI = [
+  // User functions
+  "function createVestingForSelf(uint256 packageId, uint256 amount) external",
+  "function releaseTokens() external",
+  
+  // View functions
+  "function getVestingInfo(address) external view returns (uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint8)",
+  "function getActivePackages() external view returns ((uint256 packageId, string name, string description, uint256 cliff, uint256 duration, uint8 category, bool isActive)[])",
+  "function getTokenInfo() external view returns (uint256,uint256,uint256,uint256,uint256)",
+  "function calculateReleasableAmount(address) external view returns (uint256)",
+  "function calculateVestedAmount(address) external view returns (uint256)",
+  "function hasExistingVesting(address) external view returns (bool)",
+  "function hasSufficientApproval(address,uint256) external view returns (bool)",
+  "function hasSufficientBalance(address,uint256) external view returns (bool)",
+  "function getUserVestingSummary(address) external view returns (uint256,string,uint256,uint256,uint256,uint256,uint256)",
+  
+  // Admin functions (for reference)
+  "function allocateVesting(address,uint256,uint256,uint256) external",
+  "function releaseTokensFor(address) external",
+  "function pause() external",
+  "function unpause() external",
+] as const
+
+// AUR Token Address (Replace with your actual token address)
+const AURLINK_TOKEN_ADDRESS = '0xYourAURTokenAddress' as `0x${string}`
+
 // Dynamic Package Card Component
 function PackageCard({ 
   package: pkg, 
@@ -31,16 +58,6 @@ function PackageCard({
   package: any
   onSelect: (pkg: any) => void 
 }) {
-  const getProgressPercentage = (pkg: any) => {
-    if (!pkg.maxAllocations || pkg.maxAllocations === 0) return 0
-    return (Number(pkg.currentAllocations) / Number(pkg.maxAllocations)) * 100
-  }
-
-  const getAvailableSlots = (pkg: any) => {
-    if (!pkg.maxAllocations) return 'Unlimited'
-    return Number(pkg.maxAllocations) - Number(pkg.currentAllocations)
-  }
-
   const formatDuration = (seconds: bigint) => {
     const days = Number(seconds) / (24 * 60 * 60)
     if (days >= 365) {
@@ -53,8 +70,6 @@ function PackageCard({
       return `${Math.round(days)} day${days > 1 ? 's' : ''}`
     }
   }
-
-  const hasAllocationLimits = pkg.minAllocation && pkg.maxAllocation
 
   return (
     <motion.div
@@ -75,7 +90,7 @@ function PackageCard({
           <div>
             <h3 className="text-white font-bold text-xl">{pkg.name}</h3>
             <div className="text-xs bg-black/40 px-3 py-1 rounded-full text-white mt-1 inline-block">
-              {VESTING_CATEGORIES[pkg.category as keyof typeof VESTING_CATEGORIES]}
+              {VESTING_CATEGORIES[pkg.category as keyof typeof VESTING_CATEGORIES] || 'Flexible'}
             </div>
           </div>
         </div>
@@ -101,38 +116,16 @@ function PackageCard({
         <div className="flex justify-between items-center text-sm">
           <span className="text-gray-300">Allocation:</span>
           <span className="text-white font-semibold bg-black/30 px-2 py-1 rounded">
-            {hasAllocationLimits ? 
-              `${formatNumber(Number(pkg.minAllocation) / 10**18)} - ${formatNumber(Number(pkg.maxAllocation) / 10**18)} AUR` : 
-              'Flexible Amounts'
-            }
+            Flexible Amounts
           </span>
         </div>
         <div className="flex justify-between items-center text-sm">
-          <span className="text-gray-300">Available:</span>
+          <span className="text-gray-300">Participation:</span>
           <span className="text-white font-semibold">
-            {pkg.maxAllocations ? 
-              `${getAvailableSlots(pkg)} / ${pkg.maxAllocations} slots` : 
-              'Unlimited Participation'
-            }
+            Unlimited
           </span>
         </div>
       </div>
-
-      {/* Progress Bar - Only show if there are limits */}
-      {pkg.maxAllocations && (
-        <div className="relative z-10">
-          <div className="flex justify-between text-xs text-gray-400 mb-2">
-            <span>Package Capacity</span>
-            <span>{getProgressPercentage(pkg).toFixed(1)}%</span>
-          </div>
-          <div className="w-full bg-gray-700 rounded-full h-2">
-            <div 
-              className="bg-gradient-to-r from-green-400 to-emerald-500 h-2 rounded-full transition-all duration-1000"
-              style={{ width: `${Math.min(getProgressPercentage(pkg), 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Select Button */}
       <motion.button 
@@ -157,7 +150,7 @@ function PackageSelectionModal({
   isOpen: boolean
   onClose: () => void
   packages: any[]
-  onPackageSelect: (packageId: number, amount: string) => void
+  onPackageSelect: (packageId: number, amount: string) => Promise<void>
   isProcessing: boolean
 }) {
   const [selectedPackage, setSelectedPackage] = useState<any | null>(null)
@@ -183,17 +176,17 @@ function PackageSelectionModal({
     }
   }
 
-  const handleAllocationSubmit = () => {
+  const handleAllocationSubmit = async () => {
     if (!selectedPackage || !allocationAmount) return
-    onPackageSelect(selectedPackage.packageId, allocationAmount)
+    await onPackageSelect(selectedPackage.packageId, allocationAmount)
   }
 
   const isAmountValid = () => {
     if (!selectedPackage || !allocationAmount) return false
     const amount = parseFloat(allocationAmount)
     
-    // No limits - any positive amount is valid
-    return amount > 0 && !isNaN(amount)
+    // Minimum 2000 AUR as per your UI
+    return amount >= 2000 && !isNaN(amount)
   }
 
   const formatDuration = (seconds: bigint) => {
@@ -285,9 +278,7 @@ function PackageSelectionModal({
                       </div>
                       <div className="text-center bg-black/30 rounded-2xl p-5">
                         <div className="text-gray-400 text-sm uppercase tracking-wider mb-2">Participation</div>
-                        <div className="text-white font-bold text-xl">
-                          {selectedPackage.maxAllocations ? 'Limited' : 'Unlimited'}
-                        </div>
+                        <div className="text-white font-bold text-xl">Unlimited</div>
                       </div>
                     </div>
                   </div>
@@ -320,7 +311,7 @@ function PackageSelectionModal({
                     
                     {/* Quick Amount Buttons */}
                     <div className="grid grid-cols-4 gap-3 mt-4">
-                      {[100, 1000, 5000, 10000].map((amount) => (
+                      {[2000, 5000, 10000, 25000].map((amount) => (
                         <motion.button
                           key={amount}
                           whileHover={{ scale: 1.05 }}
@@ -372,10 +363,10 @@ function PackageSelectionModal({
                       {isProcessing ? (
                         <div className="flex items-center justify-center gap-3">
                           <div className="w-7 h-7 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-                          Committing {allocationAmount} AUR to Vesting...
+                          Creating Vesting Schedule...
                         </div>
                       ) : (
-                        `Commit ${allocationAmount || '0'} AUR to Flexible Vesting`
+                        `Commit ${allocationAmount || '0'} AUR to Vesting`
                       )}
                     </span>
                   </motion.button>
@@ -416,8 +407,69 @@ export default function AURLINKVestingPortal() {
   const [availablePackages, setAvailablePackages] = useState<any[]>([])
   const [showPackageSelection, setShowPackageSelection] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [tokenBalance, setTokenBalance] = useState<bigint>(0n)
 
-  const contractAddress = '0x4bc40ef18f73cd919d2e8424ca7909ea43066e3f' as `0x${string}`
+  // Contract addresses
+  const contractAddress = '0x7915248af8b1a155a59b11d5da0a62311e02cc98' as `0x${string}`
+  // REPLACE with your actual AUR token address:
+  const aurTokenAddress = '0x13888BD6d7Fa8CCfD669fC09826Bb8acC1C68855' as `0x${string}`
+
+  // Token approval function
+  const approveTokens = useCallback(async (amountWei: bigint): Promise<boolean> => {
+    if (!walletClient || !publicClient || !address) return false
+    
+    try {
+      // Check existing allowance first
+      const currentAllowance = await publicClient.readContract({
+        address: aurTokenAddress,
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: [address, contractAddress],
+      }) as bigint
+      
+      // If already approved enough, skip
+      if (currentAllowance >= amountWei) {
+        return true
+      }
+      
+      // Approve tokens
+      const hash = await walletClient.writeContract({
+        address: aurTokenAddress,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [contractAddress, amountWei],
+        gas: 100000n,
+      })
+      
+      const receipt = await publicClient.waitForTransactionReceipt({ hash })
+      return receipt?.status === 'success'
+    } catch (error) {
+      console.error('Token approval failed:', error)
+      return false
+    }
+  }, [walletClient, publicClient, address, aurTokenAddress, contractAddress])
+
+  // Load token balance
+  const loadTokenBalance = useCallback(async () => {
+    if (!publicClient || !address) {
+      setTokenBalance(0n)
+      return
+    }
+
+    try {
+      const balance = await publicClient.readContract({
+        address: aurTokenAddress,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [address],
+      }) as bigint
+      
+      setTokenBalance(balance)
+    } catch (error) {
+      console.error('Failed to load token balance:', error)
+      setTokenBalance(0n)
+    }
+  }, [publicClient, address, aurTokenAddress])
 
   /* ============================
      DYNAMIC CONTRACT DATA LOADING
@@ -463,7 +515,6 @@ export default function AURLINKVestingPortal() {
 
   const loadAvailablePackages = useCallback(async () => {
     if (!publicClient) {
-      // If contract not available, use empty array - packages will be loaded dynamically
       setAvailablePackages([])
       return
     }
@@ -475,7 +526,22 @@ export default function AURLINKVestingPortal() {
         functionName: 'getActivePackages',
       }) as any[]
       
-      setAvailablePackages(packages)
+      // Transform contract data to match frontend format
+      const formattedPackages = packages.map((pkg: any) => ({
+        packageId: Number(pkg.packageId),
+        name: pkg.name,
+        description: pkg.description,
+        cliff: BigInt(pkg.cliff),
+        duration: BigInt(pkg.duration),
+        category: Number(pkg.category),
+        maxAllocations: null,
+        currentAllocations: 0,
+        minAllocation: null,
+        maxAllocation: null,
+        isActive: pkg.isActive
+      }))
+      
+      setAvailablePackages(formattedPackages)
     } catch (error) {
       console.error('Failed to load packages from contract:', error)
       setAvailablePackages([])
@@ -484,7 +550,6 @@ export default function AURLINKVestingPortal() {
 
   const loadGlobalStats = useCallback(async () => {
     if (!publicClient) {
-      // Set minimal default stats if contract unavailable
       setGlobalStats({
         totalAllocated: 0n,
         totalReleased: 0n,
@@ -495,7 +560,6 @@ export default function AURLINKVestingPortal() {
     }
 
     try {
-      // Try to get token info from contract
       const tokenInfo = await publicClient.readContract({
         address: contractAddress,
         abi: ERC20_ABI,
@@ -505,12 +569,11 @@ export default function AURLINKVestingPortal() {
       setGlobalStats({
         totalAllocated: BigInt(tokenInfo[1] || 0), // totalVested
         totalReleased: BigInt(tokenInfo[2] || 0),  // totalReleased
-        totalParticipants: 0n, // Would need separate tracking
+        totalParticipants: 0n,
         totalReleasable: BigInt(tokenInfo[2] || 0) - BigInt(tokenInfo[1] || 0)
       })
     } catch (error) {
       console.error('Failed to load global stats from contract:', error)
-      // Set zero stats - will be updated dynamically as users participate
       setGlobalStats({
         totalAllocated: 0n,
         totalReleased: 0n,
@@ -524,7 +587,7 @@ export default function AURLINKVestingPortal() {
      FLEXIBLE PACKAGE SELECTION
   ============================ */
   const handlePackageSelection = async (packageId: number, amount: string) => {
-    if (!isConnected || !walletClient || !address) {
+    if (!isConnected || !walletClient || !address || !publicClient) {
       setErrorMessage('Please connect your wallet')
       return
     }
@@ -534,41 +597,96 @@ export default function AURLINKVestingPortal() {
     setSuccessMessage(null)
 
     try {
-      // Convert amount to wei (assuming 18 decimals)
-      const amountWei = BigInt(parseFloat(amount) * 10**18)
-      const startTime = Math.floor(Date.now() / 1000)
+      // Validate amount
+      const amountNumber = parseFloat(amount)
+      if (isNaN(amountNumber) || amountNumber < 2000) {
+        setErrorMessage('Minimum allocation is 2000 AUR')
+        return
+      }
+      
+      const amountWei = BigInt(Math.floor(amountNumber * 10**18))
 
+      // Check token balance
+      if (tokenBalance < amountWei) {
+        setErrorMessage(`Insufficient AUR balance. You have ${formatTokenAmount(tokenBalance)} AUR`)
+        return
+      }
+
+      // Check if user already has vesting
+      try {
+        const hasVesting = await publicClient.readContract({
+          address: contractAddress,
+          abi: ERC20_ABI,
+          functionName: 'hasExistingVesting',
+          args: [address],
+        }) as boolean
+        
+        if (hasVesting) {
+          setErrorMessage('You already have an active vesting schedule')
+          return
+        }
+      } catch (error) {
+        // Function might not exist in contract, continue
+      }
+
+      // Step 1: Approve tokens
+      setSuccessMessage('Approving AUR tokens for vesting...')
+      const approved = await approveTokens(amountWei)
+      if (!approved) {
+        setErrorMessage('Token approval failed. Please try again.')
+        return
+      }
+
+      // Step 2: Create vesting
+      setSuccessMessage('Creating your vesting schedule...')
       const hash = await walletClient.writeContract({
         address: contractAddress,
         abi: ERC20_ABI,
-        functionName: 'allocateVesting',
-        args: [address, packageId, amountWei, startTime],
+        functionName: 'createVestingForSelf',
+        args: [BigInt(packageId), amountWei],
+        gas: 300000n,
       })
 
-      setSuccessMessage('Committing to flexible vesting... Waiting for confirmation...')
+      setSuccessMessage('Vesting created! Waiting for confirmation...')
       
-      const receipt = await publicClient?.waitForTransactionReceipt({ hash })
+      const receipt = await publicClient.waitForTransactionReceipt({ 
+        hash,
+        timeout: 60000,
+      })
       
       if (receipt?.status === 'success') {
-        setSuccessMessage(`✅ Successfully committed ${amount} AUR to flexible vesting!`)
+        setSuccessMessage(`✅ Success! ${formatNumber(amountNumber)} AUR committed to vesting`)
         setShowPackageSelection(false)
-        // Reload data to reflect changes
         await loadVestingInfo()
         await loadGlobalStats()
+        await loadTokenBalance() // Update balance after vesting
       } else {
-        throw new Error('Transaction failed')
+        setErrorMessage('Transaction failed on-chain')
       }
 
     } catch (error: any) {
-      console.error('Vesting commitment failed:', error)
-      setErrorMessage(error.message || error.shortMessage || 'Transaction failed')
+      console.error('Vesting creation failed:', error)
+      
+      // Better error messages
+      if (error.message?.includes('revert')) {
+        const revertMsg = error.message.match(/reverted with reason string "(.+)"/)?.[1] || 
+                         error.message.match(/reverted with reason string '(.+)'/)?.[1] ||
+                         'Contract rejected transaction'
+        setErrorMessage(`Contract error: ${revertMsg}`)
+      } else if (error.code === 4001) {
+        setErrorMessage('Transaction rejected in wallet')
+      } else if (error.message?.includes('insufficient funds')) {
+        setErrorMessage('Insufficient ETH for gas fees')
+      } else {
+        setErrorMessage(error.shortMessage || error.message || 'Transaction failed')
+      }
     } finally {
       setIsProcessing(false)
     }
   }
 
   /* ============================
-     DYNAMIC PACKAGE GENERATION
+     DYNAMIC PACKAGE GENERATION - ALL 9 ECOSYSTEM PACKAGES
   ============================ */
   const dynamicPackages = useMemo(() => {
     // If contract provides packages, use them
@@ -576,16 +694,16 @@ export default function AURLINKVestingPortal() {
       return availablePackages
     }
 
-    // Generate dynamic packages based on common vesting strategies
+    // Generate ALL 9 ecosystem packages as fallback
     const basePackages = [
       {
         packageId: 1,
-        name: "Flexible Short-term",
-        description: "Perfect for testing waters with minimal lock-up period",
-        cliff: 30 * 24 * 60 * 60, // 1 month
-        duration: 90 * 24 * 60 * 60, // 3 months
-        category: 4,
-        maxAllocations: null, // Unlimited
+        name: "Early Contributors",
+        description: "For early supporters and initial contributors to AurLink ecosystem",
+        cliff: 180n * 24n * 60n * 60n, // 6 months
+        duration: 720n * 24n * 60n * 60n, // 24 months
+        category: 0, // EarlyContributors
+        maxAllocations: null,
         currentAllocations: 0,
         minAllocation: null,
         maxAllocation: null,
@@ -593,11 +711,11 @@ export default function AURLINKVestingPortal() {
       },
       {
         packageId: 2,
-        name: "Balanced Medium-term", 
-        description: "Ideal balance between commitment and flexibility",
-        cliff: 90 * 24 * 60 * 60, // 3 months
-        duration: 360 * 24 * 60 * 60, // 12 months
-        category: 1,
+        name: "Ecosystem Development", 
+        description: "Grants for ecosystem development and platform growth initiatives",
+        cliff: 90n * 24n * 60n * 60n, // 3 months
+        duration: 1080n * 24n * 60n * 60n, // 36 months
+        category: 1, // EcosystemDevelopment
         maxAllocations: null,
         currentAllocations: 0,
         minAllocation: null,
@@ -606,11 +724,11 @@ export default function AURLINKVestingPortal() {
       },
       {
         packageId: 3,
-        name: "Committed Long-term",
-        description: "For maximum ecosystem alignment and long-term growth",
-        cliff: 180 * 24 * 60 * 60, // 6 months
-        duration: 720 * 24 * 60 * 60, // 24 months
-        category: 3,
+        name: "Team & Advisors",
+        description: "Vesting for core team members, advisors, and founders",
+        cliff: 360n * 24n * 60n * 60n, // 12 months
+        duration: 1080n * 24n * 60n * 60n, // 36 months
+        category: 2, // TeamAdvisors
         maxAllocations: null,
         currentAllocations: 0,
         minAllocation: null,
@@ -619,11 +737,76 @@ export default function AURLINKVestingPortal() {
       },
       {
         packageId: 4,
-        name: "Strategic Partner",
-        description: "Extended vesting for deep ecosystem commitment",
-        cliff: 365 * 24 * 60 * 60, // 12 months
-        duration: 1095 * 24 * 60 * 60, // 36 months
-        category: 7,
+        name: "Strategic Partners",
+        description: "Vesting for strategic partners and institutional investors",
+        cliff: 180n * 24n * 60n * 60n, // 6 months
+        duration: 720n * 24n * 60n * 60n, // 24 months
+        category: 3, // StrategicPartners
+        maxAllocations: null,
+        currentAllocations: 0,
+        minAllocation: null,
+        maxAllocation: null,
+        isActive: true
+      },
+      {
+        packageId: 5,
+        name: "Community Rewards",
+        description: "Rewards for community members, ambassadors, and active participants",
+        cliff: 30n * 24n * 60n * 60n, // 1 month
+        duration: 360n * 24n * 60n * 60n, // 12 months
+        category: 4, // CommunityRewards
+        maxAllocations: null,
+        currentAllocations: 0,
+        minAllocation: null,
+        maxAllocation: null,
+        isActive: true
+      },
+      {
+        packageId: 6,
+        name: "Liquidity Providers",
+        description: "Incentives for liquidity providers and market makers",
+        cliff: 30n * 24n * 60n * 60n, // 1 month
+        duration: 180n * 24n * 60n * 60n, // 6 months
+        category: 5, // LiquidityProvision
+        maxAllocations: null,
+        currentAllocations: 0,
+        minAllocation: null,
+        maxAllocation: null,
+        isActive: true
+      },
+      {
+        packageId: 7,
+        name: "Marketing & Development",
+        description: "Allocations for marketing campaigns and development funds",
+        cliff: 90n * 24n * 60n * 60n, // 3 months
+        duration: 540n * 24n * 60n * 60n, // 18 months
+        category: 6, // MarketingDevelopment
+        maxAllocations: null,
+        currentAllocations: 0,
+        minAllocation: null,
+        maxAllocation: null,
+        isActive: true
+      },
+      {
+        packageId: 8,
+        name: "Reserve Treasury",
+        description: "Long-term treasury reserves for ecosystem sustainability",
+        cliff: 360n * 24n * 60n * 60n, // 12 months
+        duration: 1440n * 24n * 60n * 60n, // 48 months
+        category: 7, // ReserveTreasury
+        maxAllocations: null,
+        currentAllocations: 0,
+        minAllocation: null,
+        maxAllocation: null,
+        isActive: true
+      },
+      {
+        packageId: 9,
+        name: "Flexible Vesting",
+        description: "Unlimited participation with flexible vesting terms for everyone",
+        cliff: 0n, // No cliff
+        duration: 360n * 24n * 60n * 60n, // 12 months
+        category: 8, // FlexibleVesting
         maxAllocations: null,
         currentAllocations: 0,
         minAllocation: null,
@@ -645,7 +828,8 @@ export default function AURLINKVestingPortal() {
     Promise.all([
       loadVestingInfo(),
       loadAvailablePackages(),
-      loadGlobalStats()
+      loadGlobalStats(),
+      loadTokenBalance()
     ]).finally(() => {
       setLoading(false)
     })
@@ -653,10 +837,11 @@ export default function AURLINKVestingPortal() {
     const interval = setInterval(() => {
       loadVestingInfo()
       loadGlobalStats()
+      loadTokenBalance()
     }, 30000)
     
     return () => clearInterval(interval)
-  }, [isConnected, loadVestingInfo, loadAvailablePackages, loadGlobalStats])
+  }, [isConnected, loadVestingInfo, loadAvailablePackages, loadGlobalStats, loadTokenBalance])
 
   /* ============================
      Token Release Function
@@ -681,6 +866,7 @@ export default function AURLINKVestingPortal() {
         address: contractAddress,
         abi: ERC20_ABI,
         functionName: 'releaseTokens',
+        gas: 200000n,
       })
 
       setSuccessMessage('Token release submitted! Waiting for confirmation...')
@@ -788,12 +974,19 @@ export default function AURLINKVestingPortal() {
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-12 gap-6">
           <div>
             <h1 className="text-4xl lg:text-5xl text-white font-bold mb-3 bg-gradient-to-r from-cyan-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-              Aurlink Flexible Vesting
+              Aurlink Ecosystem Vesting
             </h1>
             <p className="text-gray-300 text-xl max-w-2xl">
-              Unlimited participation, flexible amounts. 
-              <span className="text-cyan-400 font-semibold"> Vest any amount you want</span> to support ecosystem growth.
+              Complete ecosystem participation with flexible amounts. 
+              <span className="text-cyan-400 font-semibold"> Choose from 9 vesting packages</span> to support ecosystem growth.
             </p>
+            {isConnected && (
+              <div className="mt-4 text-gray-400">
+                Your AUR Balance: <span className="text-cyan-400 font-semibold">
+                  {formatTokenAmount(tokenBalance)} AUR
+                </span>
+              </div>
+            )}
           </div>
           <CustomConnectButton />
         </div>
@@ -824,11 +1017,11 @@ export default function AURLINKVestingPortal() {
 
         {!isConnected ? (
           <div className="text-center py-16">
-            <div className="text-gray-400 text-xl mb-4">Connect your wallet to access flexible vesting</div>
+            <div className="text-gray-400 text-xl mb-4">Connect your wallet to access ecosystem vesting</div>
           </div>
         ) : loading ? (
           <div className="text-center py-16">
-            <div className="text-gray-400 text-xl mb-4">Loading dynamic vesting data...</div>
+            <div className="text-gray-400 text-xl mb-4">Loading ecosystem vesting data...</div>
           </div>
         ) : (
           <div className="space-y-12">
@@ -841,37 +1034,40 @@ export default function AURLINKVestingPortal() {
               isProcessing={isProcessing}
             />
 
-            {/* FLEXIBLE VESTING HERO SECTION */}
+            {/* ECOSYSTEM VESTING HERO SECTION */}
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               className="bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-cyan-500/10 rounded-3xl p-12 border border-cyan-500/30 shadow-2xl"
             >
               <div className="text-center max-w-4xl mx-auto">
-                <div className="text-7xl mb-6">🚀</div>
+                <div className="text-7xl mb-6">🌐</div>
                 <h2 className="text-5xl font-bold text-white mb-6">
-                  Unlimited Vesting Freedom
+                  Complete Ecosystem Vesting
                 </h2>
                 <p className="text-gray-300 text-2xl mb-8 leading-relaxed">
-                  No allocation limits. No participation caps. 
-                  <span className="text-cyan-400 font-semibold"> Vest any amount</span> from micro to mega allocations. 
+                  Choose from 9 specialized vesting packages designed for every ecosystem role.
+                  <span className="text-cyan-400 font-semibold"> No allocation limits, unlimited participation.</span>
                   Every AUR token contributes to ecosystem health.
                 </p>
                 <motion.button
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowPackageSelection(true)}
-                  className="px-14 py-6 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-2xl hover:from-cyan-600 hover:to-purple-700 transition-all duration-300 text-2xl shadow-2xl"
+                  disabled={hasVestingSchedule}
+                  className="px-14 py-6 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-2xl hover:from-cyan-600 hover:to-purple-700 transition-all duration-300 text-2xl shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Start Flexible Vesting
+                  {hasVestingSchedule ? 'Already Vesting' : 'Explore Ecosystem Packages'}
                 </motion.button>
-                <p className="text-cyan-400 text-xl mt-6 font-semibold">
-                  💫 Complete flexibility for ecosystem growth
-                </p>
+                {hasVestingSchedule && (
+                  <p className="text-cyan-400 text-xl mt-6 font-semibold">
+                    ✅ You already have an active vesting schedule
+                  </p>
+                )}
               </div>
             </motion.div>
 
-            {/* DYNAMIC VESTING PACKAGES - ALWAYS VISIBLE */}
+            {/* ALL 9 ECOSYSTEM VESTING PACKAGES */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -879,22 +1075,53 @@ export default function AURLINKVestingPortal() {
               className="space-y-8"
             >
               <div className="text-center">
-                <h2 className="text-4xl font-bold text-white mb-4">Flexible Vesting Strategies</h2>
+                <h2 className="text-4xl font-bold text-white mb-4">Complete Ecosystem Packages</h2>
                 <p className="text-gray-300 text-xl max-w-3xl mx-auto">
-                  Choose from dynamic vesting packages designed for maximum flexibility. 
+                  Choose from 9 specialized vesting packages for every role in the ecosystem.
                   All packages support <span className="text-cyan-400">unlimited allocations</span> and participation.
                 </p>
               </div>
 
-              {/* Dynamic Packages Grid */}
-              <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-4 gap-8">
+              {/* All 9 Packages Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
                 {dynamicPackages.map((pkg) => (
                   <PackageCard 
                     key={pkg.packageId} 
                     package={pkg} 
-                    onSelect={() => setShowPackageSelection(true)}
+                    onSelect={() => !hasVestingSchedule && setShowPackageSelection(true)}
                   />
                 ))}
+              </div>
+
+              {/* Package Categories Summary */}
+              <div className="bg-gray-800/50 rounded-3xl p-8 border border-gray-700 mt-8">
+                <h3 className="text-2xl font-bold text-white mb-6 text-center">Package Categories</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="text-center p-4 bg-cyan-500/10 rounded-2xl border border-cyan-500/20">
+                    <div className="text-cyan-400 font-bold text-lg mb-2">Core Contributors</div>
+                    <p className="text-gray-300 text-sm">Early Contributors, Team & Advisors</p>
+                  </div>
+                  <div className="text-center p-4 bg-purple-500/10 rounded-2xl border border-purple-500/20">
+                    <div className="text-purple-400 font-bold text-lg mb-2">Ecosystem Growth</div>
+                    <p className="text-gray-300 text-sm">Ecosystem Development, Marketing</p>
+                  </div>
+                  <div className="text-center p-4 bg-green-500/10 rounded-2xl border border-green-500/20">
+                    <div className="text-green-400 font-bold text-lg mb-2">Community & Partners</div>
+                    <p className="text-gray-300 text-sm">Strategic Partners, Community Rewards</p>
+                  </div>
+                  <div className="text-center p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20">
+                    <div className="text-blue-400 font-bold text-lg mb-2">Market Infrastructure</div>
+                    <p className="text-gray-300 text-sm">Liquidity Providers</p>
+                  </div>
+                  <div className="text-center p-4 bg-yellow-500/10 rounded-2xl border border-yellow-500/20">
+                    <div className="text-yellow-400 font-bold text-lg mb-2">Long-term Reserves</div>
+                    <p className="text-gray-300 text-sm">Reserve Treasury</p>
+                  </div>
+                  <div className="text-center p-4 bg-pink-500/10 rounded-2xl border border-pink-500/20">
+                    <div className="text-pink-400 font-bold text-lg mb-2">Flexible Options</div>
+                    <p className="text-gray-300 text-sm">Flexible Vesting for Everyone</p>
+                  </div>
+                </div>
               </div>
             </motion.div>
 
@@ -937,14 +1164,16 @@ export default function AURLINKVestingPortal() {
               >
                 <div className="flex items-center justify-between mb-8">
                   <h3 className="text-2xl font-bold text-white">Your Vesting Schedule</h3>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowPackageSelection(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold rounded-xl hover:from-cyan-600 hover:to-purple-700 transition-all duration-300"
-                  >
-                    + Add More Vesting
-                  </motion.button>
+                  <div className="flex gap-3">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowPackageSelection(true)}
+                      className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold rounded-xl hover:from-cyan-600 hover:to-purple-700 transition-all duration-300"
+                    >
+                      + Add More Vesting
+                    </motion.button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
